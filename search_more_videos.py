@@ -2,7 +2,7 @@
 import os
 from dotenv import load_dotenv
 
-from src.database.manager import setup_database_tables
+from src.database import db
 from src.database.video_operations import save_videos_to_database, save_video_features_to_database
 from src.youtube.search import search_youtube_videos_by_query, get_coding_search_queries
 from src.youtube.details import get_video_details_from_youtube
@@ -18,7 +18,7 @@ def search_more_videos():
         return
 
     db_path = "video_inspiration.db"
-    setup_database_tables(db_path)
+    db.setup_tables(f'sqlite:///{db_path}')
 
     print("🔍 Searching for more coding videos...")
 

@@ -3,7 +3,7 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from src.database.manager import setup_database_tables
+from src.database import db
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
 from src.database.video_operations import get_unrated_videos_from_database
 from src.ml.model_training import create_recommendation_model, train_model_on_user_preferences
@@ -19,7 +19,7 @@ class DashboardAPI:
         self.db_path = "video_inspiration.db"
         self.model = None
         self.model_trained = False
-        setup_database_tables(self.db_path)
+        db.setup_tables(f'sqlite:///{self.db_path}')
         self._initialize_model()
 
     def _initialize_model(self):

@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-from src.database.manager import setup_database_tables
+from src.database import db
 from src.database.video_operations import save_videos_to_database, save_video_features_to_database, get_unrated_videos_from_database
 from src.database.preference_operations import save_video_rating_to_database, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database
 
@@ -26,7 +26,7 @@ class VideoInspirationFinderApp:
         self.model = None
         self.model_trained = False
         
-        setup_database_tables(self.db_path)
+        db.setup_tables(f'sqlite:///{self.db_path}')
 
     def search_and_save_coding_videos(self):
         print("🔍 Searching for coding videos...")
