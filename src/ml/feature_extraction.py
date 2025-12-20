@@ -1,10 +1,11 @@
-from typing import Dict, Tuple
+from typing import Tuple
+from src.youtube.details import YouTubeVideo
 
-def calculate_basic_video_metrics(video: Dict) -> Tuple:
-    title_length = len(video['title'])
-    description_length = len(video['description'])
-    view_like_ratio = video['like_count'] / max(video['view_count'], 1)
-    engagement_score = (video['like_count'] + video['comment_count']) / max(video['view_count'], 1)
+def calculate_basic_video_metrics(video: YouTubeVideo) -> Tuple:
+    title_length = len(video.title)
+    description_length = len(video.description)
+    view_like_ratio = video.view_like_ratio()
+    engagement_score = video.engagement_score()
 
     return (title_length, description_length, view_like_ratio, engagement_score)
 
@@ -31,9 +32,9 @@ def calculate_title_sentiment_score(title: str) -> float:
     negative_count = sum(1 for word in negative_words if word in title)
     return positive_count - negative_count
 
-def extract_all_features_from_video(video: Dict) -> Tuple:
-    title = video['title'].lower()
-    description = video['description'].lower()
+def extract_all_features_from_video(video: YouTubeVideo) -> Tuple:
+    title = video.title.lower()
+    description = video.description.lower()
 
     basic_metrics = calculate_basic_video_metrics(video)
     keyword_features = detect_keyword_features_in_video(title, description)

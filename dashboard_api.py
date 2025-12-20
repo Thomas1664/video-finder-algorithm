@@ -1,9 +1,9 @@
-import os
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from dotenv import load_dotenv
+from sqlmodel import Session, select
 
-from src.database import db
+from src.database.db import Database, Preference, Video, VideoFeatures
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
 from src.database.video_operations import get_unrated_videos_from_database
 from src.ml.model_training import create_recommendation_model, train_model_on_user_preferences
@@ -15,64 +15,56 @@ app = Flask(__name__)
 CORS(app)
 
 class DashboardAPI:
-    def __init__(self):
-        self.db_path = "video_inspiration.db"
+    def __init__(self, db: Database):
         self.model = None
         self.model_trained = False
-        db.setup_tables(f'sqlite:///{self.db_path}')
+        self.db = db
         self._initialize_model()
 
     def _initialize_model(self):
-        rated_count = get_rated_count_from_database(self.db_path)
+        rated_count = get_rated_count_from_database(self.db)
         if rated_count >= 10:
             self.model = create_recommendation_model()
-            training_data = get_training_data_from_database(self.db_path)
+            training_data = get_training_data_from_database(self.db)
             success = train_model_on_user_preferences(self.model, training_data)
             if success:
                 self.model_trained = True
 
     def get_recommendations(self):
         if self.model_trained and self.model:
-            video_features = get_unrated_videos_with_features_from_database(self.db_path)
+            video_features = get_unrated_videos_with_features_from_database(self.db)
             recommendations = predict_video_preferences_with_model(self.model, video_features)
             return recommendations[:12]  # Return 12 videos for dashboard
         else:
-            fallback_videos = get_unrated_videos_from_database(12, self.db_path)
+            fallback_videos = get_unrated_videos_from_database(12, self.db)
             for video in fallback_videos:
                 video['like_probability'] = 0.5  # Default probability
             return fallback_videos
     
     def get_liked_videos(self):
         """Get videos that user liked, ordered by AI match confidence"""
-        import sqlite3
         
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            # Get liked videos with features
-            query = """
-            SELECT v.*, vf.*, p.liked
-            FROM videos v 
-            JOIN video_features vf ON v.id = vf.video_id
-            JOIN preferences p ON v.id = p.video_id
-            WHERE p.liked = 1
-            ORDER BY v.view_count DESC
-            """
-            
-            cursor.execute(query)
-            results = cursor.fetchall()
-            conn.close()
+            with Session(self.db.engine) as session:
+                stmt = (
+                    select(Preference, Video, VideoFeatures)
+                    .join(Preference.video)
+                    .join(Video.features)
+                    .where(Preference.liked == True)
+                    .order_by(Video.view_count.desc())
+                )
+                results = session.exec(stmt).all()
+
             
             liked_videos = []
-            for row in results:
+            for _, vid, _ in results:
                 video = {
-                    'id': row['id'],
-                    'title': row['title'],
-                    'channel_name': row['channel_name'],
-                    'view_count': row['view_count'],
-                    'url': f"https://www.youtube.com/watch?v={row['id']}"
+                    'id': vid.id,
+                    'title': vid.title,
+                    'channel_name': vid.channel_name,
+                    'view_count': vid.view_count,
+                    'url': f"https://www.youtube.com/watch?v={vid.id}",
+                    'duration_seconds': vid.duration_seconds
                 }
                 liked_videos.append(video)
             
@@ -82,22 +74,22 @@ class DashboardAPI:
                 import pandas as pd
                 
                 df_data = []
-                for row in results:
+                for _, vid, features in results:
                     row_data = {
-                        'id': row['id'],
-                        'title': row['title'],
-                        'channel_name': row['channel_name'],
-                        'view_count': row['view_count'],
-                        'title_length': row['title_length'],
-                        'description_length': row['description_length'],
-                        'view_like_ratio': row['view_like_ratio'],
-                        'engagement_score': row['engagement_score'],
-                        'title_sentiment': row['title_sentiment'],
-                        'has_tutorial_keywords': row['has_tutorial_keywords'],
-                        'has_beginner_keywords': row['has_beginner_keywords'],
-                        'has_ai_keywords': row['has_ai_keywords'],
-                        'has_challenge_keywords': row['has_challenge_keywords'],
-                        'has_time_constraint': row['has_time_constraint']
+                        'id': vid.id,
+                        'title': vid.title,
+                        'channel_name': vid.channel_name,
+                        'view_count': vid.view_count,
+                        'title_length': features.title_length,
+                        'description_length': features.description_length,
+                        'view_like_ratio': features.view_like_ratio,
+                        'engagement_score': features.engagement_score,
+                        'title_sentiment': features.title_sentiment,
+                        'has_tutorial_keywords': features.has_tutorial_keywords,
+                        'has_beginner_keywords': features.has_beginner_keywords,
+                        'has_ai_keywords': features.has_ai_keywords,
+                        'has_challenge_keywords': features.has_challenge_keywords,
+                        'has_time_constraint': features.has_time_constraint
                     }
                     df_data.append(row_data)
                 
@@ -119,7 +111,8 @@ class DashboardAPI:
             print(f"Error getting liked videos: {e}")
             return []
 
-dashboard_api = DashboardAPI()
+db = Database('db_test.db')
+dashboard_api = DashboardAPI(db)
 
 @app.route('/')
 def dashboard():
@@ -127,7 +120,7 @@ def dashboard():
 
 @app.route('/api/recommendations')
 def get_recommendations():
-    try:
+    #try:
         recommendations = dashboard_api.get_recommendations()
         
         formatted_recommendations = []
@@ -140,21 +133,22 @@ def get_recommendations():
                 'url': video['url'],
                 'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
                 'confidence': round(video.get('like_probability', 0.5) * 100),
-                'views_formatted': format_view_count(video['view_count'])
+                'views_formatted': format_view_count(video['view_count']),
+                'duration': video['duration']
             })
         
         return jsonify({
             'success': True,
             'videos': formatted_recommendations,
             'model_trained': dashboard_api.model_trained,
-            'total_ratings': get_rated_count_from_database(dashboard_api.db_path)
+            'total_ratings': get_rated_count_from_database(dashboard_api.db)
         })
     
-    except Exception as e:
+"""except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500
+        }), 500"""
 
 @app.route('/api/rate', methods=['POST'])
 def rate_video():
@@ -170,18 +164,18 @@ def rate_video():
             }), 400
         
         # Save the rating
-        save_video_rating_to_database(video_id, liked, "", dashboard_api.db_path)
+        save_video_rating_to_database(video_id, liked, "", dashboard_api.db)
         
         # Check if we should retrain the model
         model_retrained = False
-        rated_count = get_rated_count_from_database(dashboard_api.db_path)
+        rated_count = get_rated_count_from_database(dashboard_api.db)
         
         if rated_count >= 10:  # Minimum ratings needed for training
             # Retrain the model with new data
             if not dashboard_api.model:
                 dashboard_api.model = create_recommendation_model()
             
-            training_data = get_training_data_from_database(dashboard_api.db_path)
+            training_data = get_training_data_from_database(dashboard_api.db)
             success = train_model_on_user_preferences(dashboard_api.model, training_data)
             
             if success:
@@ -216,7 +210,8 @@ def get_liked_videos():
                 'url': video['url'],
                 'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
                 'confidence': round(video.get('like_probability', 0.8) * 100),
-                'views_formatted': format_view_count(video['view_count'])
+                'views_formatted': format_view_count(video['view_count']),
+                #'duration': video['duration']
             })
         
         return jsonify({

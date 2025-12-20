@@ -1,58 +1,68 @@
-import sqlite3
-from datetime import datetime
-from typing import List, Dict, Tuple
+from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy import text
+from sqlmodel import Session, select
+from src.database.db import Database, Video, Preference
+from src.youtube.details import YouTubeVideo
 
-def save_videos_to_database(videos: List[Dict], db_path: str):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+def save_videos_to_database(videos: list[YouTubeVideo] | list[Video], db: Database):
+    if len(videos) == 0:
+        return
+    db_videos: list["Video"] = []
+    if isinstance(videos[0], YouTubeVideo):
+        db_videos = [Video.from_youtube_api(video) for video in videos]
 
-    for video in videos:
-        cursor.execute('''
-            INSERT OR REPLACE INTO videos VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            video['id'], video['title'], video['description'],
-            video['view_count'], video['like_count'], video['comment_count'],
-            video['duration'], video['published_at'], video['channel_name'],
-            video['thumbnail_url'], video['tags'], video['category_id'],
-            datetime.now().isoformat()
-        ))
+    with Session(db.engine) as session:
+        for video in db_videos:
+            data = video.model_dump()
+            stmt = insert(Video).values(**data)
+            update_dict = {
+                k: stmt.excluded[k]
+                for k in data.keys()
+                if k != "id"  # your PK field
+            }
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"],  # conflict on primary key
+                set_=update_dict,
+            )
+            session.exec(stmt)
+            session.commit()
 
-    conn.commit()
-    conn.close()
+def save_video_features_to_database(video_id: str, features: tuple, db: Database):
+    # build a parameter dict for positional feature values
+    # assumes the table has exactly 11 columns: video_id + 10 feature values
+    params = {"video_id": video_id}
+    for i, value in enumerate(features, start=1):
+        params[f"f{i}"] = value
 
-def save_video_features_to_database(video_id: str, features: Tuple, db_path: str):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    # Use a parameterized INSERT OR REPLACE through SQLAlchemy engine
+    stmt = text(
+        "INSERT OR REPLACE INTO video_features VALUES (:video_id, :f1, :f2, :f3, :f4, :f5, :f6, :f7, :f8, :f9, :f10)"
+    )
 
-    cursor.execute('''
-        INSERT OR REPLACE INTO video_features VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (video_id,) + features)
+    with db.engine.begin() as conn:
+        conn.execute(stmt, params)
+        conn.commit()
 
-    conn.commit()
-    conn.close()
+def get_unrated_videos_from_database(limit: int, db: Database) -> list[dict]:
+    stmt = (
+        select(Video)
+        .outerjoin(Preference, Video.id == Preference.video_id)
+        .where(Preference.video_id.is_(None))
+        .order_by(Video.view_count.desc())
+        .limit(limit)
+    )
 
-def get_unrated_videos_from_database(limit: int, db_path: str) -> List[Dict]:
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    with Session(db.engine) as session:
+        results = session.exec(stmt).all()
 
-    cursor.execute('''
-        SELECT v.*
-        FROM videos v
-        LEFT JOIN preferences p ON v.id = p.video_id
-        WHERE p.video_id IS NULL
-        ORDER BY v.view_count DESC
-        LIMIT ?
-    ''', (limit,))
-
-    videos = []
-    for row in cursor.fetchall():
+    videos: list[dict] = []
+    for video in results:
         videos.append({
-            'id': row[0],
-            'title': row[1],
-            'channel_name': row[8],
-            'view_count': row[3],
-            'url': f"https://www.youtube.com/watch?v={row[0]}"
+            'id': video.id,
+            'title': video.title,
+            'channel_name': video.channel_name,
+            'view_count': video.view_count,
+            'url': f"https://www.youtube.com/watch?v={video.id}",
+            'duration': video.duration_seconds
         })
-
-    conn.close()
     return videos

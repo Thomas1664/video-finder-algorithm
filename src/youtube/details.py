@@ -1,8 +1,33 @@
 import requests
-import json
 from typing import List, Dict
+from datetime import datetime, timedelta
+from pydantic import AliasPath, BaseModel, Field
 
-def get_video_details_from_youtube(api_key: str, video_ids: List[str]) -> List[Dict]:
+class YouTubeVideo(BaseModel):
+    id: str
+    title: str = Field(validation_alias=AliasPath('snippet', 'title'))
+    channel_id: str = Field(validation_alias=AliasPath('snippet', 'channelId'))
+    channel_name: str = Field(validation_alias=AliasPath('snippet', 'channelTitle'))
+    description: str = Field(validation_alias=AliasPath('snippet', 'description'))
+    published_at: datetime = Field(validation_alias=AliasPath('snippet', 'publishedAt'))
+    tags: list[str] = Field(validation_alias=AliasPath('snippet', 'tags'))
+    category_id: int = Field(validation_alias=AliasPath('snippet', 'categoryId'))
+    thumbnail_url: str = Field(validation_alias=AliasPath('snippet', 'thumbnails', 'high', 'url'))
+    view_count: int = Field(validation_alias=AliasPath('statistics', 'viewCount'))
+    like_count: int = Field(validation_alias=AliasPath('statistics', 'likeCount'))
+    comment_count: int = Field(validation_alias=AliasPath('statistics', 'commentCount'))
+    duration: timedelta = Field(validation_alias=AliasPath('contentDetails', 'duration'))
+
+    def view_like_ratio(self):
+        return self.like_count / max(self.view_count, 1)
+    
+    def engagement_score(self):
+        return (self.like_count + self.view_count) / max(self.view_count, 1)
+
+    def __hash__(self) -> int:
+        return self.id.__hash__()
+
+def get_video_details_from_youtube(api_key: str, video_ids: list[str]) -> list[YouTubeVideo]:
     if not video_ids:
         return []
 
@@ -19,7 +44,7 @@ def get_video_details_from_youtube(api_key: str, video_ids: List[str]) -> List[D
 
         videos = []
         for item in data.get('items', []):
-            video = parse_youtube_video_response(item)
+            video: YouTubeVideo = YouTubeVideo.model_validate(item)
             if is_relevant_coding_video(video):
                 videos.append(video)
 
@@ -29,36 +54,16 @@ def get_video_details_from_youtube(api_key: str, video_ids: List[str]) -> List[D
         print(f"Error getting video details: {e}")
         return []
 
-def parse_youtube_video_response(item: Dict) -> Dict:
-    snippet = item['snippet']
-    statistics = item['statistics']
-
-    return {
-        'id': item['id'],
-        'title': snippet['title'],
-        'description': snippet['description'],
-        'view_count': int(statistics.get('viewCount', 0)),
-        'like_count': int(statistics.get('likeCount', 0)),
-        'comment_count': int(statistics.get('commentCount', 0)),
-        'duration': item['contentDetails']['duration'],
-        'published_at': snippet['publishedAt'],
-        'channel_name': snippet['channelTitle'],
-        'thumbnail_url': snippet['thumbnails']['high']['url'],
-        'tags': json.dumps(snippet.get('tags', [])),
-        'category_id': int(snippet.get('categoryId', 0)),
-        'url': f"https://www.youtube.com/watch?v={item['id']}"
-    }
-
-def is_relevant_coding_video(video: Dict) -> bool:
-    title = video['title'].lower()
-    description = video['description'].lower()
+def is_relevant_coding_video(video: YouTubeVideo) -> bool:
+    title = video.title.lower()
+    description = video.description.lower()
 
     programming_keywords = [
         'coding', 'programming', 'javascript', 'python', 'react', 'web development',
         'tutorial', 'learn', 'build', 'create', 'app', 'website', 'algorithm', 'ai'
     ]
 
-    if video['view_count'] < 100000:
+    if video.view_count < 100000:
         return False
 
     has_programming = any(keyword in title or keyword in description

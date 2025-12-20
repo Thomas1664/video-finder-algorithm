@@ -1,0 +1,11 @@
+requests
+pandas
+scikit-learn
+numpy
+python-dotenv
+flask
+flask-cors
+sqlalchemy
+sqlmodel
+pytest
+pydantic
