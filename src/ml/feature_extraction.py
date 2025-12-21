@@ -18,11 +18,11 @@ def detect_keyword_features_in_video(title: str, description: str) -> dict[str, 
     challenge_keywords = ['challenge', 'build', 'create', 'project', 'coding']
 
     return {
-        "has_tutorial": any(kw in title or kw in description for kw in tutorial_keywords),
+        "has_tutorial_keywords": any(kw in title or kw in description for kw in tutorial_keywords),
         "has_time_constraint": any(kw in title for kw in time_keywords),
-        "has_beginner": any(kw in title or kw in description for kw in beginner_keywords),
-        "has_ai": any(kw in title or kw in description for kw in ai_keywords),
-        "has_challenge": any(kw in title for kw in challenge_keywords),
+        "has_beginner_keywords": any(kw in title or kw in description for kw in beginner_keywords),
+        "has_ai_keywords": any(kw in title or kw in description for kw in ai_keywords),
+        "has_challenge_keywords": any(kw in title for kw in challenge_keywords),
     }
 
 def calculate_title_sentiment_score(title: str) -> float:
@@ -40,9 +40,9 @@ def extract_all_features_from_video(video: YouTubeVideo) -> VideoFeatures:
     basic_metrics = calculate_basic_video_metrics(video)
     keyword_features = detect_keyword_features_in_video(title, description)
     sentiment_score = calculate_title_sentiment_score(title)
-    return VideoFeatures(
-        video_id=video.id,
+    return VideoFeatures.model_validate({
+        'video_id': video.id,
         **basic_metrics,
         **keyword_features,
-        title_sentiment=sentiment_score
-    )
+        'title_sentiment': sentiment_score
+    })

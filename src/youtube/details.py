@@ -1,22 +1,22 @@
 import requests
 from typing import List, Dict
 from datetime import datetime, timedelta
-from pydantic import AliasPath, BaseModel, Field
+from pydantic import AliasChoices, AliasPath, BaseModel, Field, ValidationError
 
 class YouTubeVideo(BaseModel):
     id: str
-    title: str = Field(validation_alias=AliasPath('snippet', 'title'))
-    channel_id: str = Field(validation_alias=AliasPath('snippet', 'channelId'))
-    channel_name: str = Field(validation_alias=AliasPath('snippet', 'channelTitle'))
-    description: str = Field(validation_alias=AliasPath('snippet', 'description'))
-    published_at: datetime = Field(validation_alias=AliasPath('snippet', 'publishedAt'))
-    tags: list[str] = Field(validation_alias=AliasPath('snippet', 'tags'))
-    category_id: int = Field(validation_alias=AliasPath('snippet', 'categoryId'))
-    thumbnail_url: str = Field(validation_alias=AliasPath('snippet', 'thumbnails', 'high', 'url'))
-    view_count: int = Field(validation_alias=AliasPath('statistics', 'viewCount'))
-    like_count: int = Field(validation_alias=AliasPath('statistics', 'likeCount'))
-    comment_count: int = Field(validation_alias=AliasPath('statistics', 'commentCount'))
-    duration: timedelta = Field(validation_alias=AliasPath('contentDetails', 'duration'))
+    title: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'title'), 'title'))
+    channel_id: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'channelId'), 'channel_id'))
+    channel_name: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'channelTitle'), 'channel_name'))
+    description: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'description'), 'description'))
+    published_at: datetime = Field(validation_alias=AliasChoices(AliasPath('snippet', 'publishedAt'), 'published_at'))
+    tags: list[str] = Field(validation_alias=AliasChoices(AliasPath('snippet', 'tags'), 'tags'), default=[])
+    category_id: int = Field(validation_alias=AliasChoices(AliasPath('snippet', 'categoryId'), 'category_id'))
+    thumbnail_url: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'thumbnails', 'high', 'url'), 'thumbnail_url'))
+    view_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'viewCount'), 'view_count'))
+    like_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'likeCount'), 'like_count'), default=0)
+    comment_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'commentCount'), 'comment_count'))
+    duration: timedelta = Field(validation_alias=AliasChoices(AliasPath('contentDetails', 'duration'), 'duration'))
 
     def view_like_ratio(self):
         return self.like_count / max(self.view_count, 1)
