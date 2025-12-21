@@ -88,7 +88,8 @@ class DashboardAPI:
                         'has_beginner_keywords': features.has_beginner_keywords,
                         'has_ai_keywords': features.has_ai_keywords,
                         'has_challenge_keywords': features.has_challenge_keywords,
-                        'has_time_constraint': features.has_time_constraint
+                        'has_time_constraint': features.has_time_constraint,
+                        'duration_seconds': vid.duration_seconds,
                     }
                     df_data.append(row_data)
                 
