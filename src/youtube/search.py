@@ -1,7 +1,10 @@
 import requests
-from typing import List, Dict
+from src.database.db import Database
+from src.database.video_operations import save_video_features_to_database, save_videos_to_database
+from src.ml.feature_extraction import extract_all_features_from_video
+from src.youtube.details import YouTubeVideo, get_video_details_from_youtube
 
-def search_youtube_videos_by_query(api_key: str, query: str, max_results: int) -> List[Dict]:
+def search_youtube_videos_by_query(api_key: str, query: str, max_results: int) -> list[str]:
     search_url = "https://www.googleapis.com/youtube/v3/search"
     params = {
         'key': api_key,
@@ -28,7 +31,16 @@ def search_youtube_videos_by_query(api_key: str, query: str, max_results: int) -
         print(f"Error searching videos: {e}")
         return []
 
-def get_coding_search_queries() -> List[str]:
+def search_and_save_videos(db: Database, api_key: str, query: str, max_results: int) -> list[YouTubeVideo]:
+    video_ids = search_youtube_videos_by_query(api_key, query, max_results)
+    videos = get_video_details_from_youtube(api_key, video_ids)
+    save_videos_to_database(videos, db)
+    for video in videos:
+        features = extract_all_features_from_video(video)
+        save_video_features_to_database(features, db)
+    return videos
+
+def get_coding_search_queries() -> list[str]:
     return [
         # Add your own search queries here
         # Examples:

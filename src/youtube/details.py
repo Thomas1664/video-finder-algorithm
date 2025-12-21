@@ -1,5 +1,4 @@
 import requests
-from typing import List, Dict
 from datetime import datetime, timedelta
 from pydantic import AliasChoices, AliasPath, BaseModel, Field, ValidationError
 

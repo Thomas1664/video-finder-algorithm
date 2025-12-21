@@ -3,12 +3,13 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from sqlmodel import Session, select
 import pandas as pd
-
+import os
 from src.database.db import Database, Preference, Video, VideoFeatures
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
 from src.database.video_operations import get_unrated_videos_from_database
 from src.ml.model_training import create_recommendation_model, train_model_on_user_preferences
 from src.ml.predictions import predict_video_preferences_with_model
+from src.youtube.search import search_and_save_videos
 
 load_dotenv()
 
@@ -225,6 +226,29 @@ def get_liked_videos():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/api/search', methods=['POST'])
+def search_videos():
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    #try:
+    data: dict = request.json
+    query: str = data.get('query')
+    if not query or len(query) == 0:
+        return jsonify({
+            'success': False,
+            'error': 'Missing or empty query!'
+        }), 400
+
+    search_and_save_videos(db, api_key, query, 28)
+
+    return jsonify({
+        'success': True
+    }), 200
+    """except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500"""
 
 def format_view_count(count: int):
     if count >= 1000000:
