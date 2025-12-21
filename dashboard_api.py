@@ -8,8 +8,7 @@ import os
 from src.database.db import Database, Preference, Video, VideoFeatures
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
 from src.database.video_operations import get_unrated_videos_from_database
-from src.ml.model_training import create_recommendation_model, train_model_on_user_preferences
-from src.ml.predictions import predict_video_preferences_with_model
+from src.ml.model_training import Model
 from src.youtube.search import search_and_save_videos
 
 load_dotenv()
@@ -19,7 +18,7 @@ CORS(app)
 
 class DashboardAPI:
     def __init__(self, db: Database):
-        self.model = None
+        self.model = Model()
         self.model_trained = False
         self.db = db
         self._initialize_model()
@@ -27,20 +26,18 @@ class DashboardAPI:
     def _initialize_model(self):
         rated_count = get_rated_count_from_database(self.db)
         if rated_count >= 10:
-            self.model = create_recommendation_model()
             training_data = get_training_data_from_database(self.db)
-            success = train_model_on_user_preferences(self.model, training_data)
-            if success:
+            if self.model.train(training_data):
                 self.model_trained = True
 
     def get_recommendations(self) -> list[dict[str, Any]]:
         if self.model_trained and self.model:
             video_features = get_unrated_videos_with_features_from_database(self.db)
             # Return 12 videos for dashboard
-            recommendations = predict_video_preferences_with_model(self.model, video_features).head(12)
+            recommendations = self.model.predict(video_features).head(27)
             return recommendations.to_dict(orient='records')
         else:
-            fallback_videos = get_unrated_videos_from_database(12, self.db)
+            fallback_videos = get_unrated_videos_from_database(27, self.db)
             fallback_videos = [video.model_dump() for video in fallback_videos]
             for video in fallback_videos:
                 video['like_probability'] = 0.5  # Default probability
@@ -66,7 +63,7 @@ class DashboardAPI:
             video_features_df = video_features_df.set_index('video_id')
 
             # Get predictions for confidence scores
-            predictions = predict_video_preferences_with_model(self.model, video_features_df)
+            predictions = self.model.predict(video_features_df)
             best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True).sort_values(by='like_probability', ascending=False)
             return best_matches.to_dict(orient='records')
 
@@ -142,11 +139,8 @@ def rate_video():
 
         if rated_count >= 10:  # Minimum ratings needed for training
             # Retrain the model with new data
-            if not dashboard_api.model:
-                dashboard_api.model = create_recommendation_model()
-
             training_data = get_training_data_from_database(dashboard_api.db)
-            success = train_model_on_user_preferences(dashboard_api.model, training_data)
+            success = dashboard_api.model.train(training_data)
 
             if success:
                 dashboard_api.model_trained = True
