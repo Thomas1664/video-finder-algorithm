@@ -40,7 +40,7 @@ class VideoInspirationFinderApp:
 
         for video in all_videos:
             features = extract_all_features_from_video(video)
-            save_video_features_to_database(video.id, features, self.db)
+            save_video_features_to_database(features, self.db)
 
         print(f"Found and saved {len(all_videos)} videos")
 

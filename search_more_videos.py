@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 from dotenv import load_dotenv
 
@@ -48,7 +47,7 @@ def search_more_videos(db: Database):
 
         for video in all_videos:
             features = extract_all_features_from_video(video)
-            save_video_features_to_database(video.id, features, db)
+            save_video_features_to_database(features, db)
 
         print(f"✅ Found and saved {len(all_videos)} new videos!")
     else:

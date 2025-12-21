@@ -2,6 +2,7 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 from sqlmodel import Session, select
+import pandas as pd
 
 from src.database.db import Database, Preference, Video, VideoFeatures
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
@@ -71,8 +72,6 @@ class DashboardAPI:
             # If model is trained, predict confidence for liked videos
             if self.model_trained and self.model and liked_videos:
                 # Create pandas DataFrame for prediction
-                import pandas as pd
-                
                 df_data = []
                 for _, vid, features in results:
                     row_data = {
@@ -226,7 +225,7 @@ def get_liked_videos():
             'error': str(e)
         }), 500
 
-def format_view_count(count):
+def format_view_count(count: int):
     if count >= 1000000:
         return f"{count/1000000:.1f}M views"
     elif count >= 1000:

@@ -1,7 +1,6 @@
 from sqlalchemy.dialects.sqlite import insert
-from sqlalchemy import text
 from sqlmodel import Session, select
-from src.database.db import Database, Video, Preference
+from src.database.db import Database, Video, Preference, VideoFeatures
 from src.youtube.details import YouTubeVideo
 
 def save_videos_to_database(videos: list[YouTubeVideo] | list[Video], db: Database):
@@ -18,30 +17,30 @@ def save_videos_to_database(videos: list[YouTubeVideo] | list[Video], db: Databa
             update_dict = {
                 k: stmt.excluded[k]
                 for k in data.keys()
-                if k != "id"  # your PK field
+                if k != "id"
             }
             stmt = stmt.on_conflict_do_update(
-                index_elements=["id"],  # conflict on primary key
+                index_elements=["id"],
                 set_=update_dict,
             )
             session.exec(stmt)
             session.commit()
 
-def save_video_features_to_database(video_id: str, features: tuple, db: Database):
-    # build a parameter dict for positional feature values
-    # assumes the table has exactly 11 columns: video_id + 10 feature values
-    params = {"video_id": video_id}
-    for i, value in enumerate(features, start=1):
-        params[f"f{i}"] = value
-
-    # Use a parameterized INSERT OR REPLACE through SQLAlchemy engine
-    stmt = text(
-        "INSERT OR REPLACE INTO video_features VALUES (:video_id, :f1, :f2, :f3, :f4, :f5, :f6, :f7, :f8, :f9, :f10)"
+def save_video_features_to_database(features: VideoFeatures, db: Database):
+    data = features.model_dump()
+    stmt = insert(VideoFeatures).values(data)
+    update_dict = {
+        k: stmt.excluded[k]
+        for k in data.keys()
+        if k != "video_id"
+    }
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["video_id"],
+        set_=update_dict,
     )
-
-    with db.engine.begin() as conn:
-        conn.execute(stmt, params)
-        conn.commit()
+    with Session(db.engine) as session:
+        session.exec(stmt)
+        session.commit()
 
 def get_unrated_videos_from_database(limit: int, db: Database) -> list[dict]:
     stmt = (
