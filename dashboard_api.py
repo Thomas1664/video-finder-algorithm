@@ -7,8 +7,10 @@ import pandas as pd
 import os
 from src.database.db import Database, Preference, Video, VideoFeatures
 from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
-from src.database.video_operations import get_unrated_videos_from_database
+from src.database.video_operations import get_unrated_videos_from_database, save_video_features_to_database, save_videos_to_database
+from src.ml.feature_extraction import extract_all_features_from_video
 from src.ml.model_training import Model
+from src.youtube.details import get_video_details_from_youtube
 from src.youtube.search import search_and_save_videos
 
 load_dotenv()
@@ -84,17 +86,29 @@ def format_seconds(total_seconds: int) -> str:
 def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     formatted_videos = []
     for video in videos:
-        formatted_videos.append({
+        result = {
             'id': video['id'],
             'title': video['title'],
             'channel_name': video['channel_name'],
+            'channel_id': video['channel_id'],
             'view_count': video['view_count'],
+            'like_count': video['like_count'],
             'url': f'https://www.youtube.com/watch?v={video["id"]}',
             'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
-            'confidence': round(video['like_probability'] * 100),
             'views_formatted': format_view_count(video['view_count']),
-            'duration': format_seconds(video['duration_seconds'])
-        })
+            'likes_formatted': format_view_count(video['like_count']),
+            'published_at': video['published_at'],
+            'description': video['description'],
+        }
+        like_prob = video.get('like_probability')
+        if like_prob:
+            result['confidence'] = round(like_prob * 100)
+        duration = video.get('duration_seconds')
+        if duration:
+            result['duration'] = format_seconds(video['duration_seconds'])
+        else:
+            result['duration'] = format_seconds(int(video['duration'].total_seconds()))
+        formatted_videos.append(result)
     return formatted_videos
 
 
@@ -183,7 +197,8 @@ def search_videos():
             'error': 'Missing or empty query!'
         }), 400
 
-    search_and_save_videos(db, api_key, query, 28)
+    results = search_and_save_videos(db, api_key, query, 28)
+    videos = format_video_response()
 
     return jsonify({
         'success': True
@@ -193,6 +208,28 @@ def search_videos():
             'success': False,
             'error': str(e)
         }), 500"""
+
+@app.route('/api/video/<video_id>')
+def get_video_details(video_id: str):
+    api_key = os.getenv('YOUTUBE_API_KEY')
+
+    videos = get_video_details_from_youtube(api_key, [video_id])
+    if len(videos) != 1:
+        return jsonify({
+            'success': False,
+            'error': 'Video not found'
+        }), 404
+
+    save_videos_to_database(videos, db)
+    video = videos[0]
+    features = extract_all_features_from_video(video)
+    save_video_features_to_database(features, db)
+    formatted_videos = format_video_response([video.model_dump()])
+
+    return jsonify({
+        'success': True,
+        'videos': formatted_videos
+    })
 
 def format_view_count(count: int):
     if count >= 1000000:
