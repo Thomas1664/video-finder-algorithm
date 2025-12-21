@@ -75,6 +75,15 @@ class DashboardAPI:
         return liked_videos.to_dict(orient='records')
 
 
+def format_seconds(total_seconds: int) -> str:
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    else:
+        return f"{minutes}:{seconds:02d}"
+
+
 def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     formatted_videos = []
     for video in videos:
@@ -87,7 +96,7 @@ def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
             'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
             'confidence': round(video['like_probability'] * 100),
             'views_formatted': format_view_count(video['view_count']),
-            'duration': video['duration_seconds']
+            'duration': format_seconds(video['duration_seconds'])
         })
     return formatted_videos
 
