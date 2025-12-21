@@ -212,7 +212,7 @@ def get_liked_videos():
                 'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
                 'confidence': round(video.get('like_probability', 0.8) * 100),
                 'views_formatted': format_view_count(video['view_count']),
-                #'duration': video['duration']
+                'duration': video['duration']
             })
         
         return jsonify({
