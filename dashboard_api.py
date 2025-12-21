@@ -75,6 +75,23 @@ class DashboardAPI:
         return liked_videos.to_dict(orient='records')
 
 
+def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    formatted_videos = []
+    for video in videos:
+        formatted_videos.append({
+            'id': video['id'],
+            'title': video['title'],
+            'channel_name': video['channel_name'],
+            'view_count': video['view_count'],
+            'url': f'https://www.youtube.com/watch?v={video["id"]}',
+            'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
+            'confidence': round(video['like_probability'] * 100),
+            'views_formatted': format_view_count(video['view_count']),
+            'duration': video['duration_seconds']
+        })
+    return formatted_videos
+
+
 db = Database('db_test.db')
 dashboard_api = DashboardAPI(db)
 
@@ -84,22 +101,8 @@ def dashboard():
 
 @app.route('/api/recommendations')
 def get_recommendations():
-    #try:
         recommendations = dashboard_api.get_recommendations()
-
-        formatted_recommendations = []
-        for video in recommendations:
-            formatted_recommendations.append({
-                'id': video['id'],
-                'title': video['title'],
-                'channel_name': video['channel_name'],
-                'view_count': video['view_count'],
-                'url': video['url'],
-                'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
-                'confidence': round(video.get('like_probability', 0.5) * 100),
-                'views_formatted': format_view_count(video['view_count']),
-                'duration': video['duration']
-            })
+        formatted_recommendations = format_video_response(recommendations)
 
         return jsonify({
             'success': True,
@@ -107,12 +110,6 @@ def get_recommendations():
             'model_trained': dashboard_api.model_trained,
             'total_ratings': get_rated_count_from_database(dashboard_api.db)
         })
-
-"""except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500"""
 
 @app.route('/api/rate', methods=['POST'])
 def rate_video():
@@ -162,20 +159,7 @@ def rate_video():
 @app.route('/api/liked')
 def get_liked_videos():
     liked_videos = dashboard_api.get_liked_videos()
-
-    formatted_videos = []
-    for video in liked_videos:
-        formatted_videos.append({
-            'id': video['id'],
-            'title': video['title'],
-            'channel_name': video['channel_name'],
-            'view_count': video['view_count'],
-            'url': f'https://www.youtube.com/watch?v={video["id"]}',
-            'thumbnail': f"https://img.youtube.com/vi/{video['id']}/hqdefault.jpg",
-            'confidence': round(video.get('like_probability', 0.8) * 100),
-            'views_formatted': format_view_count(video['view_count']),
-            'duration': video['duration_seconds']
-        })
+    formatted_videos = format_video_response(liked_videos)
 
     return jsonify({
         'success': True,
