@@ -39,6 +39,7 @@ class DashboardAPI:
             return recommendations[:12]  # Return 12 videos for dashboard
         else:
             fallback_videos = get_unrated_videos_from_database(12, self.db)
+            fallback_videos = [video.model_dump() for video in fallback_videos]
             for video in fallback_videos:
                 video['like_probability'] = 0.5  # Default probability
             return fallback_videos

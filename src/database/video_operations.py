@@ -1,3 +1,4 @@
+from typing import Sequence
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, select
 from src.database.db import Database, Video, Preference, VideoFeatures
@@ -42,7 +43,7 @@ def save_video_features_to_database(features: VideoFeatures, db: Database):
         session.exec(stmt)
         session.commit()
 
-def get_unrated_videos_from_database(limit: int, db: Database) -> list[dict]:
+def get_unrated_videos_from_database(limit: int, db: Database) -> Sequence[Video]:
     stmt = (
         select(Video)
         .outerjoin(Preference, Video.id == Preference.video_id)
@@ -50,18 +51,6 @@ def get_unrated_videos_from_database(limit: int, db: Database) -> list[dict]:
         .order_by(Video.view_count.desc())
         .limit(limit)
     )
-
     with Session(db.engine) as session:
         results = session.exec(stmt).all()
-
-    videos: list[dict] = []
-    for video in results:
-        videos.append({
-            'id': video.id,
-            'title': video.title,
-            'channel_name': video.channel_name,
-            'view_count': video.view_count,
-            'url': f"https://www.youtube.com/watch?v={video.id}",
-            'duration': video.duration_seconds
-        })
-    return videos
+    return results

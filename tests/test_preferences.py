@@ -7,8 +7,9 @@ from src.database.preference_operations import (
     get_unrated_videos_with_features_from_database,
     get_rated_count_from_database,
 )
-from src.database.db import Video, VideoFeatures, Preference
+from src.database.db import Video, Preference
 from setup import db
+from src.database.video_operations import get_unrated_videos_from_database
 
 
 def _create_video(session: Session, vid: str, view_count: int = 0):
@@ -29,6 +30,7 @@ def _create_video(session: Session, vid: str, view_count: int = 0):
         created_at=datetime.now(),
     )
     session.add(v)
+    session.commit()
     return v
 
 
@@ -55,3 +57,13 @@ def test_count(db):
     save_video_rating_to_database("id2", True, "note", db)
     count = get_rated_count_from_database(db)
     assert count == 2
+
+
+def test_get_unrated_videos(db):
+    with Session(db.engine) as session:
+        video1 = _create_video(session, "vid1", 200)
+        video2 = _create_video(session, "vid2", 200)
+    save_video_rating_to_database("vid1", False, "note", db)
+    unrated = get_unrated_videos_from_database(10, db)
+    assert len(unrated) == 1
+    assert unrated[0].id == "vid2"
