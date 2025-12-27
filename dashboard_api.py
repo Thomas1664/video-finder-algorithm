@@ -98,10 +98,10 @@ def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
             'description': video['description'],
         }
         like_prob = video.get('like_probability')
-        if like_prob:
+        if like_prob is not None:
             result['confidence'] = round(like_prob * 100)
         duration = video.get('duration_seconds')
-        if duration:
+        if duration is not None:
             result['duration'] = format_seconds(video['duration_seconds'])
         else:
             result['duration'] = format_seconds(int(video['duration'].total_seconds()))
