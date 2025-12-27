@@ -2,11 +2,10 @@ from typing import Any
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from sqlmodel import Session, select
 import pandas as pd
 import os
 from src.database.db import Database, Preference, Video, VideoFeatures
-from src.database.preference_operations import get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
+from src.database.preference_operations import get_liked_videos_from_db, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
 from src.database.video_operations import get_unrated_videos_from_database, save_video_features_to_database, save_videos_to_database
 from src.ml.feature_extraction import extract_all_features_from_video
 from src.ml.model_training import Model
@@ -17,6 +16,7 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
 
 class DashboardAPI:
     def __init__(self, db: Database):
@@ -34,10 +34,13 @@ class DashboardAPI:
 
     def get_recommendations(self) -> list[dict[str, Any]]:
         if self.model_trained and self.model:
-            video_features = get_unrated_videos_with_features_from_database(self.db)
-            # Return 12 videos for dashboard
-            recommendations = self.model.predict(video_features).head(27)
-            return recommendations.to_dict(orient='records')
+            results = get_unrated_videos_with_features_from_database(self.db)
+            video_features = [feature for _, _,feature in results]
+            videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
+            # Return 27 videos for dashboard
+            recommendations = self.predict(video_features)
+            videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).head(27)
+            return videos_and_preds.to_dict(orient='records')
         else:
             fallback_videos = get_unrated_videos_from_database(27, self.db)
             fallback_videos = [video.model_dump() for video in fallback_videos]
@@ -45,33 +48,27 @@ class DashboardAPI:
                 video['like_probability'] = 0.5  # Default probability
             return fallback_videos
 
-    def get_liked_videos(self) -> list[dict[str, Any]]:
-        """Get videos that user liked, ordered by AI match confidence"""
-        with Session(self.db.engine) as session:
-            stmt = (
-                select(Preference, Video, VideoFeatures)
-                .join(Preference.video)
-                .join(Video.features)
-                .where(Preference.liked == True)
-                .order_by(Video.view_count.desc())
-            )
-            results = session.exec(stmt).all()
-        liked_videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
+    def predict(self, features: list[VideoFeatures], default_prob=0.5):
+        # Create pandas DataFrame for prediction
+        feature_dict = [feature.model_dump() for feature in features]
+        video_features_df = pd.DataFrame(feature_dict).set_index('video_id')
 
-        # If model is trained, predict confidence for liked videos
-        if self.model_trained and self.model and not liked_videos.empty:
-            # Create pandas DataFrame for prediction
-            video_features_df = pd.DataFrame([features.model_dump() for _, _, features in results])
-            video_features_df = video_features_df.set_index('video_id')
-
+        if self.model_trained and self.model:
             # Get predictions for confidence scores
             predictions = self.model.predict(video_features_df)
-            best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True).sort_values(by='like_probability', ascending=False)
-            return best_matches.to_dict(orient='records')
+            return predictions.sort_values(by='like_probability', ascending=False)
+        video_features_df['like_probability'] = default_prob
+        return video_features_df
 
-        # If no model, return with default confidence
-        liked_videos['like_probability'] = 0.8  # High default for liked videos
-        return liked_videos.to_dict(orient='records')
+    def get_liked_videos(self) -> list[dict[str, Any]]:
+        """Get videos that user liked, ordered by AI match confidence"""
+        results = get_liked_videos_from_db(self.db)
+        liked_videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
+        features = [features for _, _, features in results]
+        # Get predictions for confidence scores
+        predictions = self.predict(features, default_prob=0.8) # High default for liked videos
+        best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True)
+        return best_matches.to_dict(orient='records')
 
 
 def format_seconds(total_seconds: int) -> str:
@@ -115,21 +112,24 @@ def format_video_response(videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
 db = Database('db_test.db')
 dashboard_api = DashboardAPI(db)
 
+
 @app.route('/')
 def dashboard():
     return render_template('dashboard.html')
 
+
 @app.route('/api/recommendations')
 def get_recommendations():
-        recommendations = dashboard_api.get_recommendations()
-        formatted_recommendations = format_video_response(recommendations)
+    recommendations = dashboard_api.get_recommendations()
+    formatted_recommendations = format_video_response(recommendations)
 
-        return jsonify({
-            'success': True,
-            'videos': formatted_recommendations,
-            'model_trained': dashboard_api.model_trained,
-            'total_ratings': get_rated_count_from_database(dashboard_api.db)
-        })
+    return jsonify({
+        'success': True,
+        'videos': formatted_recommendations,
+        'model_trained': dashboard_api.model_trained,
+        'total_ratings': get_rated_count_from_database(dashboard_api.db)
+    })
+
 
 @app.route('/api/rate', methods=['POST'])
 def rate_video():
@@ -173,6 +173,7 @@ def rate_video():
             'error': str(e)
         }), 500
 
+
 @app.route('/api/liked')
 def get_liked_videos():
     liked_videos = dashboard_api.get_liked_videos()
@@ -188,7 +189,6 @@ def get_liked_videos():
 @app.route('/api/search', methods=['POST'])
 def search_videos():
     api_key = os.getenv('YOUTUBE_API_KEY')
-    #try:
     data: dict = request.json
     query: str = data.get('query')
     if not query or len(query) == 0:
@@ -198,16 +198,17 @@ def search_videos():
         }), 400
 
     results = search_and_save_videos(db, api_key, query, 28)
-    videos = format_video_response()
+    videos = pd.DataFrame([video.model_dump() for video, _ in results])
+    features = [features for _, features in results]
+    recommendations = dashboard_api.predict(features)
+    videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).head(27)
+    videos = format_video_response(videos_and_preds.to_dict(orient='records'))
 
     return jsonify({
-        'success': True
+        'success': True,
+        'videos': videos
     }), 200
-    """except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500"""
+
 
 @app.route('/api/video/<video_id>')
 def get_video_details(video_id: str):
@@ -231,6 +232,7 @@ def get_video_details(video_id: str):
         'videos': formatted_videos
     })
 
+
 def format_view_count(count: int):
     if count >= 1000000:
         return f"{count/1000000:.1f}M views"
@@ -238,6 +240,7 @@ def format_view_count(count: int):
         return f"{count/1000:.1f}K views"
     else:
         return f"{count} views"
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

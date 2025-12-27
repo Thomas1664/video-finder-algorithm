@@ -1,8 +1,9 @@
+from typing import Sequence
 import pandas as pd
-from sqlmodel import Session, func
-from sqlalchemy import select
-from src.database.db import Database, Preference
+from sqlmodel import Session, func, select
+from src.database.db import Database, Preference, Video, VideoFeatures
 from sqlalchemy.dialects.sqlite import Insert, insert
+import sqlalchemy
 from datetime import datetime
 
 
@@ -24,6 +25,7 @@ def save_video_rating_to_database(video_id: str, liked: bool, notes: str, db: Da
         session.exec(stmt)
         session.commit()
 
+
 def get_training_data_from_database(db: Database) -> pd.DataFrame:
     with Session(db.engine) as session:
         query = '''
@@ -34,20 +36,34 @@ def get_training_data_from_database(db: Database) -> pd.DataFrame:
         df = pd.read_sql_query(query, session.connection())
     return df
 
-def get_unrated_videos_with_features_from_database(db: Database) -> pd.DataFrame:
+
+def get_unrated_videos_with_features_from_database(db: Database) -> Sequence[tuple[Preference, Video, VideoFeatures]]:
+    stmt = (
+        select(Preference, Video, VideoFeatures)
+        .join(Video.features)
+        .outerjoin(Preference, Video.id == Preference.video_id)
+        .where(Preference.video_id.is_(None))
+        .order_by(Video.view_count.desc())
+    )
     with Session(db.engine) as session:
-        query = '''
-            SELECT v.*, vf.*
-            FROM videos v
-            JOIN video_features vf ON v.id = vf.video_id
-            LEFT JOIN preferences p ON v.id = p.video_id
-            WHERE p.video_id IS NULL
-            ORDER BY v.view_count DESC
-        '''
-        df = pd.read_sql_query(query, session.connection())
-    return df
+        results = session.exec(stmt).all()
+    return results
+
+
+def get_liked_videos_from_db(db: Database) -> Sequence[tuple[Preference, Video, VideoFeatures]]:
+    stmt = (
+        select(Preference, Video, VideoFeatures)
+        .join(Preference.video)
+        .join(Video.features)
+        .where(Preference.liked == True)
+        .order_by(Video.view_count.desc())
+    )
+    with Session(db.engine) as session:
+        results = session.exec(stmt).all()
+    return results
+
 
 def get_rated_count_from_database(db: Database) -> int:
     with Session(db.engine) as session:
-        count = session.exec(select(func.count()).select_from(Preference)).scalar_one()
+        count = session.exec(sqlalchemy.select(func.count()).select_from(Preference)).scalar_one()
     return count

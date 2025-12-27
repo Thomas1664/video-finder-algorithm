@@ -2,6 +2,7 @@ import requests
 from datetime import datetime, timedelta
 from pydantic import AliasChoices, AliasPath, BaseModel, Field, ValidationError
 
+
 class YouTubeVideo(BaseModel):
     id: str
     title: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'title'), 'title'))
@@ -14,17 +15,18 @@ class YouTubeVideo(BaseModel):
     thumbnail_url: str = Field(validation_alias=AliasChoices(AliasPath('snippet', 'thumbnails', 'high', 'url'), 'thumbnail_url'))
     view_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'viewCount'), 'view_count'))
     like_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'likeCount'), 'like_count'), default=0)
-    comment_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'commentCount'), 'comment_count'))
+    comment_count: int = Field(validation_alias=AliasChoices(AliasPath('statistics', 'commentCount'), 'comment_count'), default=0)
     duration: timedelta = Field(validation_alias=AliasChoices(AliasPath('contentDetails', 'duration'), 'duration'))
 
     def view_like_ratio(self):
         return self.like_count / max(self.view_count, 1)
-    
+
     def engagement_score(self):
         return (self.like_count + self.view_count) / max(self.view_count, 1)
 
     def __hash__(self) -> int:
         return self.id.__hash__()
+
 
 def get_video_details_from_youtube(api_key: str, video_ids: list[str]) -> list[YouTubeVideo]:
     if not video_ids:
