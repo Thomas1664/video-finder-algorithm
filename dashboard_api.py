@@ -39,7 +39,7 @@ class DashboardAPI:
             videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
             # Return 27 videos for dashboard
             recommendations = self.predict(video_features)
-            videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).head(27)
+            videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).nlargest(27, columns=['like_probability'])
             return videos_and_preds.to_dict(orient='records')
         else:
             fallback_videos = get_unrated_videos_from_database(27, self.db)
@@ -55,8 +55,7 @@ class DashboardAPI:
 
         if self.model_trained and self.model:
             # Get predictions for confidence scores
-            predictions = self.model.predict(video_features_df)
-            return predictions.sort_values(by='like_probability', ascending=False)
+            return self.model.predict(video_features_df)
         video_features_df['like_probability'] = default_prob
         return video_features_df
 
@@ -67,7 +66,7 @@ class DashboardAPI:
         features = [features for _, _, features in results]
         # Get predictions for confidence scores
         predictions = self.predict(features, default_prob=0.8) # High default for liked videos
-        best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True)
+        best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True).sort_values(by=['like_probability'], ascending=False)
         return best_matches.to_dict(orient='records')
 
 
@@ -201,7 +200,7 @@ def search_videos():
     videos = pd.DataFrame([video.model_dump() for video, _ in results])
     features = [features for _, features in results]
     recommendations = dashboard_api.predict(features)
-    videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).head(27)
+    videos_and_preds = videos.merge(recommendations['like_probability'], left_on='id', right_index=True).nlargest(27, columns=['like_probability'])
     videos = format_video_response(videos_and_preds.to_dict(orient='records'))
 
     return jsonify({
