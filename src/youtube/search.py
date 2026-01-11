@@ -13,8 +13,7 @@ def search_youtube_videos_by_query(api_key: str, query: str, max_results: int) -
         'type': 'video',
         'order': 'viewCount',
         'maxResults': max_results,
-        'videoCategoryId': '28',
-        'publishedAfter': '2020-01-01T00:00:00Z',
+        'publishedAfter': '2015-01-01T00:00:00Z',
         'relevanceLanguage': 'en'
     }
 
@@ -38,9 +37,9 @@ def get_coding_search_queries() -> list[str]:
     return [
         # Add your own search queries here
         # Examples:
-        # "python tutorial",
-        # "javascript project",
-        # "machine learning basics",
-        # "web development",
-        # "coding interview prep"
+        "US late night",
+        "gardening",
+        "machine learning tutorial",
+        "rag tutorial",
+        "python llm",
     ]
