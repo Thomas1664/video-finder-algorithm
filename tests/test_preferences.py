@@ -3,8 +3,6 @@ from datetime import datetime
 from sqlmodel import Session
 from database.preference_operations import (
     save_video_rating_to_database,
-    get_training_data_from_database,
-    get_unrated_videos_with_features_from_database,
     get_rated_count_from_database,
 )
 from database.db import Video, Preference
@@ -61,8 +59,8 @@ def test_count(db):
 
 def test_get_unrated_videos(db):
     with Session(db.engine) as session:
-        video1 = _create_video(session, "vid1", 200)
-        video2 = _create_video(session, "vid2", 200)
+        _create_video(session, "vid1", 200)
+        _create_video(session, "vid2", 200)
     save_video_rating_to_database("vid1", False, "note", db)
     unrated = get_unrated_videos_from_database(10, db)
     assert len(unrated) == 1
