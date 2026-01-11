@@ -1,1 +1,0 @@
-# Video Inspiration Finder package
