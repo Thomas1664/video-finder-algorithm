@@ -68,6 +68,6 @@ def is_relevant_coding_video(video: YouTubeVideo) -> bool:
         return False
 
     has_programming = any(keyword in title or keyword in description
-                        for keyword in programming_keywords)
+                          for keyword in programming_keywords)
 
     return has_programming
