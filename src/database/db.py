@@ -1,7 +1,7 @@
 from sqlmodel import TIMESTAMP, Column, Field, Relationship, SQLModel, create_engine, text
 from datetime import datetime
 import json
-from youtube.details import YouTubeVideo
+from src.youtube.details import YouTubeVideo
 
 class Video(SQLModel, table=True):
     __tablename__ = 'videos'

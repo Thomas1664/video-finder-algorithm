@@ -1,6 +1,6 @@
 import pytest
-from database.db import Database
-from youtube.details import YouTubeVideo
+from src.database.db import Database
+from src.youtube.details import YouTubeVideo
 from datetime import datetime, timedelta
 
 

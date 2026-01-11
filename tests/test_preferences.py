@@ -1,13 +1,13 @@
 import pytest
 from datetime import datetime
 from sqlmodel import Session
-from database.preference_operations import (
+from src.database.preference_operations import (
     save_video_rating_to_database,
     get_rated_count_from_database,
 )
-from database.db import Video, Preference
+from src.database.db import Video, Preference
 from setup import db
-from database.video_operations import get_unrated_videos_from_database
+from src.database.video_operations import get_unrated_videos_from_database
 
 
 def _create_video(session: Session, vid: str, view_count: int = 0):

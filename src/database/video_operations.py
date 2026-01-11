@@ -1,8 +1,8 @@
 from typing import Sequence
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import Session, select
-from database.db import Database, Video, Preference, VideoFeatures
-from youtube.details import YouTubeVideo
+from src.database.db import Database, Video, Preference, VideoFeatures
+from src.youtube.details import YouTubeVideo
 
 def save_videos_to_database(videos: list[YouTubeVideo] | list[Video], db: Database):
     if len(videos) == 0:

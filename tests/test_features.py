@@ -1,9 +1,9 @@
 import pytest
 from sqlmodel import Session, select
 from setup import create_youtube_video, db
-from database.db import VideoFeatures
-from database.video_operations import save_video_features_to_database
-from ml.feature_extraction import extract_all_features_from_video
+from src.database.db import VideoFeatures
+from src.database.video_operations import save_video_features_to_database
+from src.ml.feature_extraction import extract_all_features_from_video
 
 
 def _create_video_features(vid: str, view_like_ratio, engagement_score: float):

@@ -1,6 +1,6 @@
 from typing import Any
-from database.db import VideoFeatures
-from youtube.details import YouTubeVideo
+from src.database.db import VideoFeatures
+from src.youtube.details import YouTubeVideo
 
 def calculate_basic_video_metrics(video: YouTubeVideo) -> dict[str, Any]:
     return {
