@@ -1,20 +1,20 @@
 import os
 from dotenv import load_dotenv
 
-from src.database import db
-from src.database.video_operations import save_videos_to_database, save_video_features_to_database, get_unrated_videos_from_database
-from src.database.preference_operations import save_video_rating_to_database, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database
+from database import db
+from database.video_operations import save_videos_to_database, save_video_features_to_database, get_unrated_videos_from_database
+from database.preference_operations import save_video_rating_to_database, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database
 
-from src.youtube.search import search_youtube_videos_by_query, get_coding_search_queries
-from src.youtube.details import YouTubeVideo, get_video_details_from_youtube
+from youtube.search import search_youtube_videos_by_query, get_coding_search_queries
+from youtube.details import YouTubeVideo, get_video_details_from_youtube
 
-from src.ml.feature_extraction import extract_all_features_from_video
-from src.ml.model_training import create_recommendation_model, train_model_on_user_preferences
-from src.ml.predictions import predict_video_preferences_with_model
+from ml.feature_extraction import extract_all_features_from_video
+from ml.model_training import create_recommendation_model, train_model_on_user_preferences
+from ml.predictions import predict_video_preferences_with_model
 
-from src.rating.display import display_video_information_for_rating, display_rating_session_header, display_session_type_message
-from src.rating.user_input import get_user_rating_response, get_user_notes_for_rating
-from src.rating.session import process_user_rating_for_video, should_continue_rating_session, has_videos_to_rate
+from rating.display import display_video_information_for_rating, display_rating_session_header, display_session_type_message
+from rating.user_input import get_user_rating_response, get_user_notes_for_rating
+from rating.session import process_user_rating_for_video, should_continue_rating_session, has_videos_to_rate
 
 load_dotenv()
 

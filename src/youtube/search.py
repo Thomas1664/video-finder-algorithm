@@ -1,8 +1,8 @@
 import requests
-from src.database.db import Database, VideoFeatures
-from src.database.video_operations import save_video_features_to_database, save_videos_to_database
-from src.ml.feature_extraction import extract_all_features_from_video
-from src.youtube.details import YouTubeVideo, get_video_details_from_youtube
+from database.db import Database, VideoFeatures
+from database.video_operations import save_video_features_to_database, save_videos_to_database
+from ml.feature_extraction import extract_all_features_from_video
+from youtube.details import YouTubeVideo, get_video_details_from_youtube
 
 def search_youtube_videos_by_query(api_key: str, query: str, max_results: int) -> list[str]:
     search_url = "https://www.googleapis.com/youtube/v3/search"

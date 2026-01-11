@@ -1,7 +1,7 @@
 from typing import Sequence
 import pandas as pd
 from sqlmodel import Session, func, select
-from src.database.db import Database, Preference, Video, VideoFeatures
+from database.db import Database, Preference, Video, VideoFeatures
 from sqlalchemy.dialects.sqlite import Insert, insert
 import sqlalchemy
 from datetime import datetime

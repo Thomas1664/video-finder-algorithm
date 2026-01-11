@@ -4,13 +4,13 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import pandas as pd
 import os
-from src.database.db import Database, Preference, Video, VideoFeatures
-from src.database.preference_operations import get_liked_videos_from_db, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
-from src.database.video_operations import get_unrated_videos_from_database, save_video_features_to_database, save_videos_to_database
-from src.ml.feature_extraction import extract_all_features_from_video
-from src.ml.model_training import Model
-from src.youtube.details import get_video_details_from_youtube
-from src.youtube.search import search_and_save_videos
+from database.db import Database, Preference, Video, VideoFeatures
+from database.preference_operations import get_liked_videos_from_db, get_training_data_from_database, get_unrated_videos_with_features_from_database, get_rated_count_from_database, save_video_rating_to_database
+from database.video_operations import get_unrated_videos_from_database, save_video_features_to_database, save_videos_to_database
+from ml.feature_extraction import extract_all_features_from_video
+from ml.model_training import Model
+from youtube.details import get_video_details_from_youtube
+from youtube.search import search_and_save_videos
 
 load_dotenv()
 
