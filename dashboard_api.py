@@ -35,7 +35,7 @@ class DashboardAPI:
     def get_recommendations(self) -> list[dict[str, Any]]:
         if self.model_trained and self.model:
             results = get_unrated_videos_with_features_from_database(self.db)
-            video_features = [feature for _, _,feature in results]
+            video_features = [feature for _, _, feature in results]
             videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
             # Return 27 videos for dashboard
             recommendations = self.predict(video_features)
@@ -65,7 +65,7 @@ class DashboardAPI:
         liked_videos = pd.DataFrame([video.model_dump() for _, video, _ in results])
         features = [features for _, _, features in results]
         # Get predictions for confidence scores
-        predictions = self.predict(features, default_prob=0.8) # High default for liked videos
+        predictions = self.predict(features, default_prob=0.8)  # High default for liked videos
         best_matches = liked_videos.merge(predictions['like_probability'], left_on='id', right_index=True).sort_values(by=['like_probability'], ascending=False)
         return best_matches.to_dict(orient='records')
 
