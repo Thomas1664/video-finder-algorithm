@@ -46,29 +46,29 @@ class VideoInspirationFinderApp:
 
     def start_interactive_rating_session(self):
         display_rating_session_header()
-        
+
         while True:
             videos = self._get_videos_for_rating()
             rated_count = get_rated_count_from_database(self.db)
             session_message = display_session_type_message(self.model_trained, rated_count)
-            
+
             print(f"\n{session_message}")
-            
+
             if not has_videos_to_rate(videos):
                 print("No more videos to rate!")
                 break
-            
+
             for video in videos:
                 display_video_information_for_rating(video)
-                
+
                 response = get_user_rating_response()
-                
+
                 if not should_continue_rating_session(response):
                     return
-                
+
                 def save_rating(video_id, liked, notes):
                     save_video_rating_to_database(video_id, liked, notes, self.db)
-                
+
                 process_user_rating_for_video(video, response, save_rating, get_user_notes_for_rating)
                 self._try_train_model()
 
@@ -83,7 +83,7 @@ class VideoInspirationFinderApp:
         if not self.model_trained:
             if not self.model:
                 self.model = create_recommendation_model()
-            
+
             training_data = get_training_data_from_database(self.db)
             success = train_model_on_user_preferences(self.model, training_data)
             if success:

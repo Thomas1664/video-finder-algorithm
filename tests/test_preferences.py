@@ -37,7 +37,7 @@ def _create_video(session: Session, vid: str, view_count: int = 0):
 def test_save_rating(db):
     with Session(db.engine) as session:
         _create_video(session, "id1", 500)
-    
+
     save_video_rating_to_database("id1", True, "note", db)
     with Session(db.engine) as session:
         pref = session.get(Preference, "id1")
